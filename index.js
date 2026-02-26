@@ -1,40 +1,41 @@
 import jsonfile from "jsonfile";
 import moment from "moment";
 import simpleGit from "simple-git";
-import random from "random";
 
 const path = "./data.json";
 
-const markCommit = (x, y) => {
-  const date = moment()
-    .subtract(1, "y")
-    .add(1, "d")
-    .add(x, "w")
-    .add(y, "d")
-    .format();
+const makeSnakeCommits = async (totalWeeks) => {
+  const git = simpleGit();
 
-  const data = {
-    date: date,
-  };
+  for (let x = 0; x <= totalWeeks; x++) {
+    // Sinusoidal wave: y oscillates between 0 and 6
+    const y = Math.round(3 + 3 * Math.sin(x / 4));
 
-  jsonfile.writeFile(path, data, () => {
-    simpleGit().add([path]).commit(date, { "--date": date }).push();
-  });
+    const date = moment("2025-01-01")
+      .add(x, "w")
+      .add(y, "d")
+      .format();
+
+    const data = { date };
+
+    try {
+      await jsonfile.writeFile(path, data);
+      await git.add([path]);
+      const result = await git.commit(`Snake commit: ${date}`, { "--date": date });
+      console.log(`[${x}/${totalWeeks}] Commit created: ${result.commit} for ${date}`);
+    } catch (err) {
+      console.error(`Error at week ${x}:`, err);
+    }
+  }
+
+  console.log("Snake pattern complete! Pushing to remote...");
+  try {
+    await git.push();
+    console.log("Push successful!");
+  } catch (pushErr) {
+    console.error("Push failed:", pushErr);
+  }
 };
 
-const makeCommits = (n) => {
-  if(n===0) return simpleGit().push();
-  const x = random.int(0, 54);
-  const y = random.int(0, 6);
-  const date = moment().subtract(1, "y").add(1, "d").add(x, "w").add(y, "d").format();
-
-  const data = {
-    date: date,
-  };
-  console.log(date);
-  jsonfile.writeFile(path, data, () => {
-    simpleGit().add([path]).commit(date, { "--date": date },makeCommits.bind(this,--n));
-  });
-};
-
-makeCommits(100);
+// 104 weeks = 2 years
+makeSnakeCommits(104);
